@@ -1,0 +1,128 @@
+# ============================================================
+# OpenCode Evolved — Configuración para EasyPanel
+# ============================================================
+# Instrucciones:
+#   1. Sube este repo a GitHub
+#   2. En EasyPanel: New Project → Add Service → App
+#   3. Source: GitHub → selecciona tu repo
+#   4. EasyPanel detecta el Dockerfile automáticamente
+#   5. Configura las variables de entorno abajo
+#   6. Crea un dominio (Domain) apuntando al puerto 3000
+# ============================================================
+
+services:
+  opencode:
+    type: app
+    build:
+      type: dockerfile
+      file: Dockerfile
+    domains:
+      - host: "$(PRIMARY_DOMAIN)"
+        port: 3000
+        https: true
+    env:
+      # ── Servidor ──────────────────────────────────────────
+      PORT: "3000"
+      OPENCODE_WORKSPACE: /workspace
+      TZ: "America/Bogota"
+      DISPLAY: ":99"
+      OPERATOR_PORT: "3001"
+      API_SERVER_PORT: "3001"
+
+      # ── Seguridad (opcional pero recomendado) ─────────────
+      # Establece una contraseña para proteger el acceso web
+      # OPENCODE_SERVER_PASSWORD: "tu-password-seguro"
+
+      # ── FreeModel (GPT-4o GRATIS — prioridad #1 para visión) ──
+      # Obtener en: https://freemodel.dev
+      FREEMODEL_API_KEY: ""
+      FREEMODEL_BASE_URL: "https://api.freemodel.dev/v1"
+      FREEMODEL_MODEL: "gpt-4o"
+
+      # ── OpenAI ───────────────────────────────────────────
+      # Obtener en: https://platform.openai.com/api-keys
+      OPENAI_API_KEY: ""
+
+      # ── Anthropic Claude ─────────────────────────────────
+      # Obtener en: https://console.anthropic.com
+      ANTHROPIC_API_KEY: ""
+
+      # ── Google Gemini ─────────────────────────────────────
+      # Obtener en: https://aistudio.google.com/app/apikey
+      GOOGLE_GENERATIVE_AI_API_KEY: ""
+
+      # ── GRATUITOS (solo registro) ─────────────────────────
+      # Groq → https://console.groq.com/keys (Llama, Mixtral)
+      GROQ_API_KEY: ""
+      # OpenRouter → https://openrouter.ai/keys (60+ modelos)
+      OPENROUTER_API_KEY: ""
+      # Cerebras → https://cloud.cerebras.ai (ultrarrápido)
+      CEREBRAS_API_KEY: ""
+      # Together AI → https://api.together.xyz
+      TOGETHER_AI_API_KEY: ""
+
+      # ── Otros ────────────────────────────────────────────
+      MISTRAL_API_KEY: ""
+      XAI_API_KEY: ""
+
+      # ── Puter.js (texto gratis sin API key) ──────────────
+      PUTER_AUTH_TOKEN: ""
+
+      # ── GitHub Token (para push/pull desde el agente) ────
+      GITHUB_TOKEN: ""
+      GITHUB_PERSONAL_ACCESS_TOKEN: ""
+
+      # ── Base de datos Easypanel PostgreSQL ───────────────
+      # Si usas la BD interna de Easypanel, copia la URL desde
+      # el servicio PostgreSQL en tu panel
+      EASYPANEL_DATABASE_URL: ""
+      DB_HOST: ""
+      DB_PORT: "5432"
+      DB_USER: ""
+      DB_PASSWORD: ""
+      DB_NAME: ""
+
+      # ── Telegram Bot (opcional) ───────────────────────────
+      TELEGRAM_BOT_TOKEN: ""
+
+      # ── Ollama (modelos locales, si lo tienes instalado) ──
+      OLLAMA_HOST: ""
+
+    mounts:
+      - type: volume
+        name: opencode-workspace
+        mountPath: /workspace
+      - type: volume
+        name: opencode-data
+        mountPath: /root/.local/share/opencode
+      - type: volume
+        name: opencode-config
+        mountPath: /root/.config/opencode
+
+    resources:
+      memoryLimit: 2048
+      cpuLimit: 2
+
+  # ── PostgreSQL (opcional si usas el de Easypanel) ──────────
+  # Descomenta si quieres una BD propia en el mismo stack
+  # postgres:
+  #   type: postgres
+  #   image: postgres:16
+  #   env:
+  #     POSTGRES_DB: opencode
+  #     POSTGRES_USER: opencode
+  #     POSTGRES_PASSWORD: "TU_PASSWORD_AQUI"
+  #   mounts:
+  #     - type: volume
+  #       name: postgres-data
+  #       mountPath: /var/lib/postgresql/data
+
+  # ── Ollama (modelos 100% locales y gratuitos) ──────────────
+  # Descomenta para usar Llama, Mistral, etc. localmente
+  # ollama:
+  #   type: app
+  #   image: ollama/ollama:latest
+  #   mounts:
+  #     - type: volume
+  #       name: ollama-models
+  #       mountPath: /root/.ollama
