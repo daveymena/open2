@@ -161,12 +161,14 @@ echo ""
 echo "  🚀 Iniciando motor OpenCode en puerto $OC_PORT..."
 PORT=$OC_PORT opencode serve \
   --port "$OC_PORT" \
+  --no-auth \
   --hostname 0.0.0.0 &
 OC_PID=$!
 
 echo "  🚀 Iniciando motor MiMo Code en puerto $MIMO_PORT..."
 PORT=$MIMO_PORT mimo serve \
   --port "$MIMO_PORT" \
+  --no-auth \
   --hostname 0.0.0.0 &
 MIMO_PID=$!
 
