@@ -133,6 +133,12 @@ RUN curl -fsSL "https://github.com/sst/opencode/releases/download/v${OPENCODE_VE
     && rm /tmp/opencode.tar.gz
 
 # ============================================================
+# MIMO CODE CLI (Agente de Xiaomi - Dual Engine)
+# ============================================================
+RUN npm install -g @mimo-ai/cli
+
+
+# ============================================================
 # WEB OPERATOR — Automatización de navegador con Playwright
 # ============================================================
 RUN apt-get update && apt-get install -y \
@@ -191,9 +197,10 @@ RUN cd /workspace/artifacts/web-operator && npx playwright install chromium --wi
 RUN ln -sf /workspace/artifacts/artifacts/opencode-ui /workspace/artifacts/opencode-ui-compiled 2>/dev/null || true
 
 # ============================================================
-# CONFIGURACIÓN DE OPENCODE
+# CONFIGURACIÓN DE OPENCODE Y MIMO
 # ============================================================
 COPY .config/opencode/ /root/.config/opencode/
+COPY .config/mimo/ /root/.config/mimo/ 2>/dev/null || true
 COPY .opencode/ /workspace/.opencode/
 COPY .env.example /workspace/.env.example
 COPY proyectos/README.md /workspace/proyectos/README.md 2>/dev/null || true
@@ -207,7 +214,8 @@ RUN mkdir -p \
     /workspace/artifacts/bin \
     /root/.local/share/opencode \
     /root/.cache/opencode \
-    /root/.config/opencode
+    /root/.config/opencode \
+    /root/.config/mimo
 
 # Copiar scripts MCP al directorio artifacts/bin
 RUN (cp /workspace/artifacts/bin/mcp-computer.mjs /workspace/artifacts/artifacts/bin/ 2>/dev/null || true) && \
@@ -219,8 +227,8 @@ RUN (cp /workspace/artifacts/bin/mcp-computer.mjs /workspace/artifacts/artifacts
 COPY docker/start.sh /usr/local/bin/start-opencode.sh
 RUN chmod +x /usr/local/bin/start-opencode.sh
 
-# Puertos: Proxy(3000) + WebOperator(3001) + VNC(6080)
-EXPOSE 3000 3001 6080
+# Puertos: Proxy OC(3000) + WebOp(3001) + Proxy MiMo(4000) + VNC(6080)
+EXPOSE 3000 3001 4000 6080
 
 # Variables de entorno por defecto
 ENV PORT=3000
