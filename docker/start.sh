@@ -161,7 +161,6 @@ echo ""
 echo "  🚀 Iniciando motor OpenCode en puerto $OC_PORT..."
 PORT=$OC_PORT opencode serve \
   --port "$OC_PORT" \
-  --no-auth \
   --hostname 0.0.0.0 &
 OC_PID=$!
 
