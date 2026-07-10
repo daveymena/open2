@@ -12,8 +12,8 @@ COPY . /app
 # Instalar OpenCode y MiMo globalmente
 RUN npm install -g opencode-ai @mimo-ai/cli pm2
 
-# Instalar dependencias del proxy
-RUN npm install express http-proxy-middleware
+# Instalar dependencias del proxy (opencode-ui)
+RUN cd artifacts/opencode-ui && npm install
 
 # Instalar dependencias del web operator
 RUN cd web-operator && npm install
