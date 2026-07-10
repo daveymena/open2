@@ -14,6 +14,7 @@ bin/opencode-*
 *.node
 
 # Sesiones de Chrome y memoria del web-operator
+.chrome-session/
 web-operator/.chrome-session/
 web-operator/.site-memory/
 web-operator/node_modules/
