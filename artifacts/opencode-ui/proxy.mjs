@@ -314,22 +314,6 @@ async function callGeminiVision(key, base64, mime, question) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FRONTEND STANDALONE — Sirve UI local si existe
-// ═══════════════════════════════════════════════════════════════
-const UI_DIR_DOCKER = '/app/ui';
-const UI_DIR_LOCAL  = path.join(__dirname, 'ui');
-const UI_DIR        = existsSync(UI_DIR_DOCKER) ? UI_DIR_DOCKER : UI_DIR_LOCAL;
-const UI_INDEX      = path.join(UI_DIR, 'index.html');
-const hasStandalone = existsSync(UI_INDEX);
-
-if (hasStandalone) {
-  app.use(express.static(UI_DIR, { index: false }));
-  console.log(`✦ Frontend standalone cargado desde ${UI_DIR}`);
-} else {
-  console.log(`✦ Frontend standalone no encontrado — usando UI de OpenCode`);
-}
-
-// ═══════════════════════════════════════════════════════════════
 // Shell injection HTML
 // ═══════════════════════════════════════════════════════════════
 const shellCSS = `<link rel="stylesheet" href="/__shell/shell.css">`;
@@ -397,32 +381,7 @@ const proxyOptions = {
   },
 };
 
-// Con frontend standalone: solo proxiar /api/* y assets
-// Sin standalone: proxy completo a OpenCode
-if (hasStandalone) {
-  app.use("/api", (req, res, next) => {
-    createProxyMiddleware({ ...proxyOptions, pathRewrite: undefined })(req, res, (err) => {
-      if (err) {
-        res.status(503).json({ error: "OpenCode no disponible", detail: err.message });
-      } else {
-        next();
-      }
-    });
-  });
-  app.use("/__shell", express.static(path.join(__dirname, "public")));
-  // SPA catch-all
-  app.use((req, res, next) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/__')) {
-      res.sendFile(UI_INDEX);
-    } else {
-      next();
-    }
-  });
-  console.log(`✦ Modo: Frontend standalone + API proxy`);
-} else {
-  app.use("/", createProxyMiddleware(proxyOptions));
-  console.log(`✦ Modo: Proxy completo a OpenCode`);
-}
+
 
 // ── Servidor HTTP con soporte WebSocket ─────────────────────
 const server = createServer(app);
