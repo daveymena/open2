@@ -14,8 +14,7 @@ const OPENCODE_PORT   = parseInt(process.env.OPENCODE_INTERNAL_PORT || "21294");
 const OPENCODE_TARGET = `http://localhost:${OPENCODE_PORT}`;
 
 const app = express();
-app.use(express.json({ limit: "20mb" }));
-app.use(express.urlencoded({ extended: false }));
+
 
 // ═══════════════════════════════════════════════════════════════
 // AUTENTICACIÓN — Login con cookie de sesión
@@ -126,7 +125,7 @@ app.get("/__login", (req, res) => {
 });
 
 // POST /__login → valida credenciales
-app.post("/__login", (req, res) => {
+app.post("/__login", express.urlencoded({ extended: false }), (req, res) => {
   const { username, password } = req.body;
   if (username === AUTH_USER && password === AUTH_PASS) {
     res.setHeader("Set-Cookie",
