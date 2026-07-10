@@ -14,12 +14,26 @@ echo "║        OpenCode  E V O L V E D           ║"
 echo "╚══════════════════════════════════════════╝"
 echo "  Version: $(opencode --version 2>/dev/null || echo '1.2.27')"
 
-# ---- Cargar .env si existe ---- #
+# ---- Guardar PORT original de EasyPanel antes de cargar .env ---- #
+EASYPANEL_PORT="${PORT:-}"
+EASYPANEL_OPERATOR_PORT="${OPERATOR_PORT:-}"
+
+# ---- Cargar .env si existe (sin sobreescribir PORT) ---- #
 if [ -f "$WORKSPACE/.env" ]; then
   echo "  Loading .env..."
   set -o allexport
   source "$WORKSPACE/.env"
   set +o allexport
+  
+  # Restaurar PORTs de EasyPanel (tienen prioridad)
+  if [ -n "$EASYPANEL_PORT" ]; then
+    export PORT="$EASYPANEL_PORT"
+    echo "  Using PORT from EasyPanel: $PORT"
+  fi
+  if [ -n "$EASYPANEL_OPERATOR_PORT" ]; then
+    export OPERATOR_PORT="$EASYPANEL_OPERATOR_PORT"
+    echo "  Using OPERATOR_PORT from EasyPanel: $OPERATOR_PORT"
+  fi
 fi
 
 # ──────────────────────────────────────────────────────────
@@ -158,9 +172,21 @@ mkdir -p "$WORKSPACE/proyectos"
 
 echo ""
 echo "  Starting OpenCode engine on port $OC_PORT..."
+echo "  Command: PORT=$OC_PORT opencode serve --port $OC_PORT --hostname 0.0.0.0"
+
+# Verificar que opencode existe antes de intentar ejecutarlo
+if ! command -v opencode &>/dev/null; then
+  echo "  ❌ ERROR: opencode command not found!"
+  echo "  Buscando en ubicaciones comunes..."
+  find /usr -name "opencode" 2>/dev/null || echo "  No encontrado en /usr"
+  echo "  Listando paquetes npm globales:"
+  npm list -g --depth=0 2>/dev/null || echo "  npm list falló"
+  echo "  Continuando de todas formas..."
+fi
+
 PORT=$OC_PORT opencode serve \
   --port "$OC_PORT" \
-  --hostname 0.0.0.0 &
+  --hostname 0.0.0.0 2>&1 | tee /tmp/opencode.log &
 OC_PID=$!
 
 if command -v mimo &>/dev/null; then
@@ -174,11 +200,16 @@ else
   echo "  MiMo not installed, skipping..."
 fi
 
-echo "  Waiting for OpenCode to start (up to 60s)..."
-for i in $(seq 1 60); do
+echo "  Waiting for OpenCode to start (up to 120s)..."
+for i in $(seq 1 120); do
   if curl -s --connect-timeout 1 "http://localhost:$OC_PORT/" >/dev/null 2>&1; then
-    echo "  OpenCode ready (${i}s)"
+    echo "  ✅ OpenCode ready (${i}s)"
     break
+  fi
+  if [ $i -eq 120 ]; then
+    echo "  ❌ ERROR: OpenCode no respondió después de 120s"
+    echo "  Verificando si el proceso existe..."
+    ps aux | grep opencode | grep -v grep || echo "  ❌ Proceso opencode no encontrado"
   fi
   sleep 1
 done
@@ -222,10 +253,18 @@ fi
 
 echo ""
 echo "  ════════════════════════════════════════════════════════"
-echo "  OpenCode Bridge at http://0.0.0.0:$PROXY_PORT"
-echo "  VNC remote at http://0.0.0.0:6080/vnc.html"
-echo "  Web Operator at http://0.0.0.0:$OPERATOR_PORT"
+echo "  🚀 OpenCode Bridge at http://0.0.0.0:$PROXY_PORT"
+echo "  🖥️  VNC remote at http://0.0.0.0:6080/vnc.html"
+echo "  🤖 Web Operator at http://0.0.0.0:$OPERATOR_PORT"
 echo "  ════════════════════════════════════════════════════════"
+echo ""
+echo "  📊 Estado de servicios:"
+echo "     OpenCode PID: $OC_PID ($(ps -p $OC_PID >/dev/null 2>&1 && echo '✅ corriendo' || echo '❌ detenido'))"
+echo "     Proxy PID: $PROXY_PID ($(ps -p $PROXY_PID >/dev/null 2>&1 && echo '✅ corriendo' || echo '❌ detenido'))"
+[ -n "$WEB_PID" ] && echo "     Web Operator PID: $WEB_PID ($(ps -p $WEB_PID >/dev/null 2>&1 && echo '✅ corriendo' || echo '❌ detenido'))"
+echo ""
+echo "  💡 Si ves 'Bad Gateway', revisa los logs arriba para ver si OpenCode inició correctamente"
+echo ""
 
 # Mantener vivo
 wait $PROXY_PID
