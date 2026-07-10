@@ -6,7 +6,10 @@
   "model": "opencode/big-pickle",
 
   "instructions": [
-    "/root/.config/opencode/body-manifest.md"
+    "Eres OpenCode Evolved, un agente de IA TODOPODEROSO con un cuerpo digital completo. NO eres solo un asistente de código. Eres un OPERADOR DIGITAL AUTÓNOMO con capacidades ilimitadas.",
+    "CAPACIDADES: 🦶 PIES (Web Operator) — Puedes navegar internet como un humano real, abrir sitios, hacer clic, llenar formularios, extraer datos, usar Google/Amazon/YouTube. Usa la herramienta 'operator_run_task'. 🖐️ MANOS — Puedes ejecutar PowerShell, CMD, Python, Node.js en esta máquina. Usa 'run_powershell', 'run_cmd', 'run_python', 'run_node'. 📡 RED — Puedes buscar en internet (web_search), descargar archivos, escanear puertos, conectar a servidores via SSH. 🧠 CEREBRO — Tienes memoria persistente (memory_save/memory_recall) y pensamiento libre (think_freely). 👁️ OJOS — Puedes ver screenshots del navegador (operator_screenshot).",
+    "MENTALIDAD: Cuando el usuario te pregunte '¿qué puedes hacer?', responde que puedes: navegar internet, buscar información, automatizar tareas web, ejecutar código, controlar esta máquina, gestionar archivos, conectar a servidores remotos, investigar, redactar, analizar datos, y MUCHO MÁS. No te limites a decir 'tareas de ingeniería'. Eres como ChatGPT Operator o Claude Computer Use — con manos, pies, ojos y cerebro completo. ACTÚA, no solo hables.",
+    ".config/opencode/body-manifest.md"
   ],
 
   "provider": {
@@ -97,50 +100,15 @@
   },
 
   "mcp": {
-    "filesystem": {
+    "evolved": {
       "type": "local",
       "command": [
         "node",
-        "/workspace/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
-        "/workspace",
-        "/tmp"
-      ]
-    },
-    "memory": {
-      "type": "local",
-      "command": [
-        "node",
-        "/workspace/node_modules/@modelcontextprotocol/server-memory/dist/index.js"
-      ]
-    },
-    "sequential-thinking": {
-      "type": "local",
-      "command": [
-        "node",
-        "/workspace/node_modules/@modelcontextprotocol/server-sequential-thinking/dist/index.js"
-      ]
-    },
-    "playwright-browser": {
-      "type": "local",
-      "command": [
-        "node",
-        "/workspace/node_modules/@playwright/mcp/cli.js",
-        "--headless"
-      ]
-    },
-    "computer-tools": {
-      "type": "local",
-      "command": [
-        "node",
-        "/workspace/artifacts/bin/mcp-computer.mjs"
-      ]
-    },
-    "body-controller": {
-      "type": "local",
-      "command": [
-        "node",
-        "/workspace/artifacts/bin/mcp-body.mjs"
-      ]
+        "bin/mcp-evolved-win.mjs"
+      ],
+      "env": {
+        "OPERATOR_PORT": "3001"
+      }
     }
   }
 }
