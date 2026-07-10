@@ -9,8 +9,8 @@ WORKDIR /app
 # Copiar el código fuente al contenedor
 COPY . /app
 
-# Instalar OpenCode y MiMo globalmente
-RUN npm install -g opencode @mimo/cli pm2
+# Instalar OpenCode globalmente
+RUN npm install -g opencode pm2
 
 # Instalar dependencias del web operator
 RUN cd web-operator && npm install
@@ -23,5 +23,5 @@ EXPOSE 3000
 EXPOSE 3001
 EXPOSE 4000
 
-# Script de arranque usando PM2
-CMD ["pm2-runtime", "start", "ecosystem.config.js"]
+# Script de arranque
+CMD ["bash", "docker/start.sh"]

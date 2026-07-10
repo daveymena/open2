@@ -164,12 +164,16 @@ PORT=$OC_PORT opencode serve \
   --hostname 0.0.0.0 &
 OC_PID=$!
 
-echo "  🚀 Iniciando motor MiMo Code en puerto $MIMO_PORT..."
-PORT=$MIMO_PORT mimo serve \
-  --port "$MIMO_PORT" \
-  --no-auth \
-  --hostname 0.0.0.0 &
-MIMO_PID=$!
+if command -v mimo &>/dev/null; then
+  echo "  🚀 Iniciando motor MiMo Code en puerto $MIMO_PORT..."
+  PORT=$MIMO_PORT mimo serve \
+    --port "$MIMO_PORT" \
+    --no-auth \
+    --hostname 0.0.0.0 &
+  MIMO_PID=$!
+else
+  echo "  ⚠️  MiMo no instalado, omitiendo..."
+fi
 
 echo "  ⏳ Esperando a que OpenCode inicie (hasta 60s)..."
 for i in $(seq 1 60); do
@@ -206,14 +210,16 @@ API_SERVER_PORT="$OPERATOR_PORT" \
 node proxy.mjs &
 PROXY_PID=$!
 
-# ── Proxy secundario (MiMo Code) ─────────────────────────
-echo "  🚀 Iniciando proxy MiMo Code en puerto $MIMO_PROXY_PORT..."
-PORT="$MIMO_PROXY_PORT" \
-OPENCODE_INTERNAL_PORT="$MIMO_PORT" \
-OPERATOR_PORT="$OPERATOR_PORT" \
-API_SERVER_PORT="$OPERATOR_PORT" \
-node proxy.mjs &
-MIMO_PROXY_PID=$!
+# ── Proxy secundario (MiMo Code - opcional) ──────────────
+if [ -n "$MIMO_PID" ]; then
+  echo "  🚀 Iniciando proxy MiMo Code en puerto $MIMO_PROXY_PORT..."
+  PORT="$MIMO_PROXY_PORT" \
+  OPENCODE_INTERNAL_PORT="$MIMO_PORT" \
+  OPERATOR_PORT="$OPERATOR_PORT" \
+  API_SERVER_PORT="$OPERATOR_PORT" \
+  node proxy.mjs &
+  MIMO_PROXY_PID=$!
+fi
 
 echo ""
 echo "  ════════════════════════════════════════════════════════"
@@ -223,5 +229,5 @@ echo "  🖥️  VNC remoto en http://0.0.0.0:6080/vnc.html"
 echo "  🤖 Web Operator en http://0.0.0.0:$OPERATOR_PORT"
 echo "  ════════════════════════════════════════════════════════"
 
-# Mantener vivo esperando ambos proxies
-wait -n $PROXY_PID $MIMO_PROXY_PID
+# Mantener vivo
+wait $PROXY_PID

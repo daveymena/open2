@@ -10,31 +10,12 @@ module.exports = {
       }
     },
     {
-      name: 'mimo-engine',
-      script: 'mimo',
-      args: 'serve --port 21295',
-      env: {
-        PORT: 21295,
-        NODE_ENV: 'production'
-      }
-    },
-    {
       name: 'proxy-3000',
       script: 'node',
       args: 'artifacts/opencode-ui/proxy.mjs',
       env: {
         PORT: 3000,
         OPENCODE_INTERNAL_PORT: 21294,
-        NODE_ENV: 'production'
-      }
-    },
-    {
-      name: 'proxy-4000',
-      script: 'node',
-      args: 'artifacts/opencode-ui/proxy.mjs',
-      env: {
-        PORT: 4000,
-        OPENCODE_INTERNAL_PORT: 21295,
         NODE_ENV: 'production'
       }
     },
