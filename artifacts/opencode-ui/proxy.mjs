@@ -157,6 +157,16 @@ if (AUTH_PASS) {
 // ── Static shell files (CSS + JS personalizado) ──────────────
 app.use("/__shell", express.static(path.join(__dirname, "public")));
 
+// ── Servir archivos estáticos del frontend construido ─────────
+const distPublicPath = path.join(__dirname, "dist", "public");
+if (existsSync(distPublicPath)) {
+  console.log(`✦ Sirviendo frontend desde: ${distPublicPath}`);
+  app.use(express.static(distPublicPath));
+} else {
+  console.warn(`⚠ Directorio dist/public no encontrado en: ${distPublicPath}`);
+  console.warn(`⚠ Ejecuta 'npm run build' en artifacts/opencode-ui para construir el frontend`);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // ENDPOINT: /vision — Convierte imagen → texto descriptivo
 // Permite que CUALQUIER modelo (Llama, Groq, Mistral, etc.)
@@ -382,8 +392,29 @@ const proxyOptions = {
 };
 
 // ── Proxy principal → OpenCode ──────────────────────────────
-app.use("/", createProxyMiddleware(proxyOptions));
-console.log(`✦ Modo: Proxy completo a OpenCode (Native UI)`);
+// Solo hacer proxy a rutas específicas de OpenCode API/WebSocket
+app.use(["/api", "/ws", "/__opencode"], createProxyMiddleware(proxyOptions));
+
+// ── Fallback: Servir index.html para rutas SPA ───────────────
+app.get("*", (req, res) => {
+  const indexPath = path.join(__dirname, "dist", "public", "index.html");
+  if (existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send(`
+      <!DOCTYPE html>
+      <html><head><title>Frontend no construido</title></head>
+      <body style="font-family:sans-serif;padding:2rem;background:#0f0f1a;color:#e2e8f0">
+        <h1 style="color:#8b5cf6">⚠️ Frontend no construido</h1>
+        <p>El frontend de OpenCode UI no ha sido construido aún.</p>
+        <p>En el servidor, ejecuta: <code style="background:#1e1e2e;padding:0.5rem;border-radius:4px;display:inline-block">cd artifacts/opencode-ui && npm run build</code></p>
+      </body></html>
+    `);
+  }
+});
+
+console.log(`✦ Modo: Sirviendo frontend + Proxy a OpenCode para /api, /ws`);
+
 
 // ── Servidor HTTP con soporte WebSocket ─────────────────────
 const server = createServer(app);
