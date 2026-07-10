@@ -148,7 +148,8 @@ app.get("/__logout", (req, res) => {
 if (AUTH_PASS) {
   app.use((req, res, next) => {
     if (req.path.startsWith("/__shell") || req.path === "/__vision" ||
-        req.path === "/__login" || req.path === "/__logout") return next();
+        req.path === "/__login" || req.path === "/__logout" ||
+        req.path === "/site.webmanifest" || req.path.startsWith("/favicon")) return next();
     if (!isAuthenticated(req)) return res.redirect("/__login");
     next();
   });
@@ -381,7 +382,9 @@ const proxyOptions = {
   },
 };
 
-
+// ── Proxy principal → OpenCode ──────────────────────────────
+app.use("/", createProxyMiddleware(proxyOptions));
+console.log(`✦ Modo: Proxy completo a OpenCode (Native UI)`);
 
 // ── Servidor HTTP con soporte WebSocket ─────────────────────
 const server = createServer(app);
