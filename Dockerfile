@@ -9,8 +9,8 @@ WORKDIR /app
 # Copiar el código fuente al contenedor
 COPY . /app
 
-# Instalar OpenCode globalmente
-RUN npm install -g opencode pm2
+# Instalar OpenCode y MiMo globalmente
+RUN npm install -g opencode-ai @mimo-ai/cli pm2
 
 # Instalar dependencias del web operator
 RUN cd web-operator && npm install
