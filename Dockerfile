@@ -15,8 +15,8 @@ RUN npm install -g opencode-ai @mimo-ai/cli pm2
 # Instalar dependencias del proxy (opencode-ui)
 RUN cd artifacts/opencode-ui && npm install
 
-# CONSTRUIR EL FRONTEND - Esto es crucial para que la UI se muestre
-RUN cd artifacts/opencode-ui && npm run build
+# NOTA: No construimos el frontend React porque OpenCode usa interfaz nativa.
+# El proxy solo sirve archivos estáticos de /public (shell.css, shell.js)
 
 # Instalar dependencias del web operator
 RUN cd web-operator && npm install
