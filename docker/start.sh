@@ -136,6 +136,8 @@ echo "  VNC ready at :6080"
 # ──────────────────────────────────────────────────────────
 #  INSTALAR MCP SERVERS (si no existen)
 # ──────────────────────────────────────────────────────────
+mkdir -p "$WORKSPACE"
+
 if [ ! -d "$WORKSPACE/node_modules/@modelcontextprotocol" ]; then
   echo ""
   echo "  Installing MCP servers..."
@@ -162,7 +164,7 @@ fi
 # ──────────────────────────────────────────────────────────
 #  ARRANQUE DE MOTORES
 # ──────────────────────────────────────────────────────────
-PROXY_PORT="${PORT:-3000}"
+PROXY_PORT="3000"
 MIMO_PROXY_PORT="4000"
 
 OC_PORT="$(( PROXY_PORT + 1 ))"
@@ -200,6 +202,18 @@ else
   echo "  MiMo not installed, skipping..."
 fi
 
+# ── Proxy principal (OpenCode) — se inicia ANTES del wait loop ──
+#    para que EasyPanel vea el puerto activo inmediatamente
+echo "  Starting OpenCode proxy on port $PROXY_PORT..."
+cd "$APP_DIR/artifacts/opencode-ui"
+
+PORT="$PROXY_PORT" \
+OPENCODE_INTERNAL_PORT="$OC_PORT" \
+OPERATOR_PORT="${OPERATOR_PORT:-3001}" \
+API_SERVER_PORT="${OPERATOR_PORT:-3001}" \
+node proxy.mjs &
+PROXY_PID=$!
+
 echo "  Waiting for OpenCode to start (up to 120s)..."
 for i in $(seq 1 120); do
   if curl -s --connect-timeout 1 "http://localhost:$OC_PORT/" >/dev/null 2>&1; then
@@ -228,17 +242,6 @@ if [ -f "$APP_DIR/web-operator/api-server.js" ]; then
   sleep 2
   echo "  Web Operator ready"
 fi
-
-# ── Proxy principal (OpenCode) ──────────────────────────
-echo "  Starting OpenCode proxy on port $PROXY_PORT..."
-cd "$APP_DIR/artifacts/opencode-ui"
-
-PORT="$PROXY_PORT" \
-OPENCODE_INTERNAL_PORT="$OC_PORT" \
-OPERATOR_PORT="$OPERATOR_PORT" \
-API_SERVER_PORT="$OPERATOR_PORT" \
-node proxy.mjs &
-PROXY_PID=$!
 
 # ── Proxy secundario (MiMo Code - opcional) ─────────────
 if [ -n "$MIMO_PID" ]; then
