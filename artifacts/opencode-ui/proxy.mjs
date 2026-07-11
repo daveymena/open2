@@ -37,6 +37,16 @@ console.log(`  - OPENCODE_INTERNAL_PORT: ${process.env.OPENCODE_INTERNAL_PORT ||
 const app = express();
 
 // ═══════════════════════════════════════════════════════════════
+// LOGGING DE PETICIONES (para diagnosticar EasyPanel)
+// ═══════════════════════════════════════════════════════════════
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  const ip = req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress;
+  console.log(`[${timestamp}] ${req.method} ${req.url} - IP: ${ip} - User-Agent: ${req.headers['user-agent']?.substring(0, 50)}`);
+  next();
+});
+
+// ═══════════════════════════════════════════════════════════════
 // ENDPOINT DE DIAGNÓSTICO - /___health
 // ═══════════════════════════════════════════════════════════════
 app.get("/__health", async (req, res) => {
@@ -492,4 +502,18 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`✦ OpenCode Evolved shell corriendo en http://0.0.0.0:${PORT}`);
   console.log(`  → Proxying a OpenCode en ${OPENCODE_TARGET}`);
   console.log(`  → Frontend: http://localhost:${PORT}`);
+  console.log(``);
+  console.log(`📡 Endpoints disponibles:`);
+  console.log(`  → http://0.0.0.0:${PORT}/          (OpenCode UI)`);
+  console.log(`  → http://0.0.0.0:${PORT}/__health  (Diagnóstico)`);
+  console.log(`  → http://0.0.0.0:${PORT}/__login   (Login)`);
+  console.log(``);
+  console.log(`🔍 Esperando peticiones...`);
+});
+
+// Log de cada petición recibida para diagnosticar
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${req.method} ${req.url} - IP: ${req.ip}`);
+  next();
 });
