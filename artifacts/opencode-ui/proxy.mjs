@@ -36,6 +36,42 @@ console.log(`  - OPENCODE_INTERNAL_PORT: ${process.env.OPENCODE_INTERNAL_PORT ||
 
 const app = express();
 
+// ═══════════════════════════════════════════════════════════════
+// ENDPOINT DE DIAGNÓSTICO - /___health
+// ═══════════════════════════════════════════════════════════════
+app.get("/__health", async (req, res) => {
+  const diagnostics = {
+    proxy: {
+      status: "running",
+      port: PORT,
+      target: OPENCODE_TARGET,
+      mode: IS_DOCKER ? "Docker/EasyPanel" : "Local"
+    },
+    opencode: {
+      port: OPENCODE_PORT,
+      reachable: false,
+      httpStatus: null,
+      error: null
+    },
+    timestamp: new Date().toISOString()
+  };
+
+  // Probar conexión a OpenCode
+  try {
+    const testUrl = `http://127.0.0.1:${OPENCODE_PORT}/`;
+    const response = await fetch(testUrl, { 
+      method: 'GET',
+      signal: AbortSignal.timeout(5000)
+    });
+    diagnostics.opencode.reachable = true;
+    diagnostics.opencode.httpStatus = response.status;
+  } catch (err) {
+    diagnostics.opencode.error = err.message;
+  }
+
+  res.setHeader("Content-Type", "application/json");
+  res.json(diagnostics);
+});
 
 // ═══════════════════════════════════════════════════════════════
 // AUTENTICACIÓN — Login con cookie de sesión
@@ -362,7 +398,20 @@ const proxyOptions = {
       delete proxyRes.headers["x-frame-options"];
       delete proxyRes.headers["content-length"];
 
-      if (proxyRes.statusCode === 401 || proxyRes.statusCode === 403) {
+      // Manejar códigos de autenticación de OpenCode
+      if (proxyRes.statusCode === 401) {
+        console.log(`[Proxy] OpenCode requiere autenticación (401) - inyectando credenciales`);
+        
+        if (AUTH_PASS) {
+          // Si tenemos credenciales configuradas, las inyectamos
+          const authCookie = `${SESSION_KEY}=${SESSION_TOKEN}`;
+          const existingCookies = proxyRes.headers["set-cookie"] || [];
+          proxyRes.headers["set-cookie"] = [...existingCookies, `${authCookie}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400`];
+        }
+      }
+
+      if (proxyRes.statusCode === 403) {
+        console.log(`[Proxy] OpenCode rechaza acceso (403)`);
         if (AUTH_PASS) {
           const injectUrl = proxyRes.headers["location"] || "";
           if (injectUrl.includes("login") || injectUrl.includes("auth")) {
