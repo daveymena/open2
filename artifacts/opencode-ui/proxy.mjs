@@ -382,21 +382,15 @@ const proxyOptions = {
 };
 
 // ── Proxy principal → OpenCode ──────────────────────────────
-app.use("/", createProxyMiddleware(proxyOptions));
+const proxyMiddleware = createProxyMiddleware(proxyOptions);
+app.use("/", proxyMiddleware);
 console.log(`✦ Modo: Proxy completo a OpenCode (Native UI)`);
 
 
 // ── Servidor HTTP con soporte WebSocket ─────────────────────
 const server = createServer(app);
 
-server.on("upgrade", (req, socket, head) => {
-  try {
-    const wsProxy = createProxyMiddleware({ target: OPENCODE_TARGET, changeOrigin: true, ws: true });
-    wsProxy.upgrade(req, socket, head);
-  } catch (e) {
-    socket.destroy();
-  }
-});
+server.on("upgrade", proxyMiddleware.upgrade);
 
 process.on('uncaughtException', (err) => {
   console.error('✦ Error no capturado:', err.message);
