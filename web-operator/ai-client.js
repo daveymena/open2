@@ -108,36 +108,12 @@ async function sendToOpenCode(textContent, model = 'opencode/deepseek-v4-flash-f
 }
 
 async function callVisionAPIs(base64, question) {
-  // ── PRIORIDAD 1: GitHub Copilot Vision (si está habilitado) ──
-  if (USE_COPILOT_FIRST) {
-    console.log(`  [Vision] Copilot ${COPILOT_MODEL} (prioritario)...`);
-    const copilotResult = await callCopilotVision(base64, question, COPILOT_MODEL);
-    if (copilotResult) {
-      console.log(`  [Vision] ✓ Copilot OK (${copilotResult.length} chars)`);
-      return copilotResult;
-    }
-    console.log(`  [Vision] Copilot no disponible, usando fallbacks...`);
-  }
-
-  // ── PRIORIDAD 2: OpenCode Zen mimo-v2.5-free ──
-  console.log(`  [Vision] OpenCode Zen mimo-v2.5-free...`);
-  try {
-    const textContent = question + '\n\n[Analiza la imagen adjunta]';
-    const result = await sendToOpenCode(textContent, 'opencode/mimo-v2.5-free');
-    if (result) {
-      console.log(`  [Vision] ✓ OpenCode OK (${result.length} chars)`);
-      return result;
-    }
-  } catch (e) {
-    console.error(`  [Vision] mimo-v2.5-free error: ${e.message}`);
-  }
-
-  // ── PRIORIDAD 3: Freemodel gpt-4o ──
+  // ── PRIORIDAD 1: Freemodel gpt-4o (VISION - más confiable) ──
   const key = process.env.FREEMODEL_API_KEY;
   const baseUrl = process.env.FREEMODEL_BASE_URL || 'https://api.freemodel.dev/v1';
   if (key) {
     try {
-      console.log(`  [Vision] Freemodel gpt-4o...`);
+      console.log(`  [Vision] Freemodel gpt-4o (PRIORIDAD)...`);
       const resp = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
@@ -159,6 +135,30 @@ async function callVisionAPIs(base64, question) {
     } catch (e) {
       console.error(`  [Vision] Freemodel error: ${e.message}`);
     }
+  }
+
+  // ── PRIORIDAD 2: GitHub Copilot Vision ──
+  if (USE_COPILOT_FIRST) {
+    console.log(`  [Vision] Copilot ${COPILOT_MODEL}...`);
+    const copilotResult = await callCopilotVision(base64, question, COPILOT_MODEL);
+    if (copilotResult) {
+      console.log(`  [Vision] ✓ Copilot OK (${copilotResult.length} chars)`);
+      return copilotResult;
+    }
+    console.log(`  [Vision] Copilot no disponible, usando fallbacks...`);
+  }
+
+  // ── PRIORIDAD 3: OpenCode Zen mimo-v2.5-free ──
+  console.log(`  [Vision] OpenCode Zen mimo-v2.5-free...`);
+  try {
+    const textContent = question + '\n\n[Analiza la imagen adjunta]';
+    const result = await sendToOpenCode(textContent, 'opencode/mimo-v2.5-free');
+    if (result) {
+      console.log(`  [Vision] ✓ OpenCode OK (${result.length} chars)`);
+      return result;
+    }
+  } catch (e) {
+    console.error(`  [Vision] mimo-v2.5-free error: ${e.message}`);
   }
 
   // ── ÚLTIMO FALLBACK: Copilot (si no estaba habilitado como primario) ──
@@ -364,16 +364,8 @@ export async function callBestModel(taskType, messages, maxTokens = 4096) {
 
     if (!base64) {
       console.error('  [AI] No se encontró imagen base64');
-  // Fallback: GitHub Copilot vision
-  console.log(`  [Vision] Fallback: Copilot vision...`);
-  const copilotResult = await callCopilotVision(base64, question);
-  if (copilotResult) {
-    console.log(`  [Vision] ✓ Copilot OK (${copilotResult.length} chars)`);
-    return copilotResult;
-  }
-
-  return null;
-}
+      return null;
+    }
 
     return await callVisionAPIs(base64, question);
   }

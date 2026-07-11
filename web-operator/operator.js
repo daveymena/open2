@@ -479,7 +479,7 @@ export class WebOperator {
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  LOOP PRINCIPAL — Con razonamiento real
+  //  LOOP PRINCIPAL — Con razonamiento real + anti-bot
   // ═══════════════════════════════════════════════════════════
   async run(task, startUrl = null, options = {}) {
     this.task = task;
@@ -487,6 +487,9 @@ export class WebOperator {
     this.lastUrl = null;
     this.lastExtracted = null;
     this.siteInstructions = options.instructions || [];
+    this.humanMode = false; // Modo humano cuando detecta anti-bot
+    this.lastActionType = null;
+    this.sameActionCount = 0;
 
     this.log('');
     this.log('========================================');
@@ -527,7 +530,6 @@ export class WebOperator {
     if (plan?.strategy === 'api' && plan?.apiAlternative) {
       this.log(`  [Razonamiento] Recomendación: Usar API en lugar de navegador`);
       this.log(`  [Razonamiento] ${plan.apiAlternative}`);
-      // Continuar con browser pero con la info de la API como contexto
     }
 
     this.log('');
@@ -540,6 +542,7 @@ export class WebOperator {
     let noProgressCount = 0;
     let lastActionSummary = '';
     let screenshotBefore = null;
+    let repeatedActionFails = 0;
 
     for (let iteration = 0; iteration < this.maxIterations; iteration++) {
       this.log(`\n--- Iteración ${iteration + 1}/${this.maxIterations} ---`);
@@ -565,30 +568,39 @@ export class WebOperator {
       });
 
       // ── Detección de obstáculos ──
-      if (await this.detectLoginPage()) {
+      const isLoginPage = await this.detectLoginPage();
+      const isCaptcha = await this.detectCaptcha();
+
+      if (isLoginPage && !this.siteMemory?.loginSaved) {
         this.log('  Login detectado');
-        if (!this.siteMemory?.loginSaved) {
-          const hasLikelyCreds = /@[\w.-]+/.test(this.task) || /(?:password|contraseña|contrasena|clave|login)/i.test(this.task);
-          
-          if (!hasLikelyCreds) {
-            this.log('  Se requiere inicio de sesión. Notificando al usuario...');
-            // En vez de bloquear indefinidamente con enterTakeoverMode, dejamos que la IA pida ayuda y decida.
-            // Esto permite que siga el bucle o que el LLM decida esperar.
-            this.onMessage?.({ type: 'takeover', reason: 'Página de login detectada. Proporciona credenciales o inicia sesión manualmente.' });
-          } else {
-            this.log('  Posibles credenciales detectadas en la tarea. El agente intentará iniciar sesión automáticamente.');
-          }
-          if (this.siteMemory) { this.siteMemory.loginSaved = true; saveSiteMemory(this.currentDomain, this.siteMemory); }
+        const hasLikelyCreds = /@[\w.-]+/.test(this.task) || /(?:password|contraseña|contrasena|clave|login)/i.test(this.task);
+        
+        if (!hasLikelyCreds) {
+          this.log('  Se requiere inicio de sesión. Notificando al usuario...');
+          this.onMessage?.({ type: 'takeover', reason: 'Página de login detectada. Proporciona credenciales o inicia sesión manualmente.' });
+        } else {
+          this.log('  Posibles credenciales detectadas en la tarea. El agente intentará iniciar sesión automáticamente.');
         }
+        if (this.siteMemory) { this.siteMemory.loginSaved = true; saveSiteMemory(this.currentDomain, this.siteMemory); }
       }
 
-      if (await this.detectCaptcha() && !this.captchaDetected) {
+      if (isCaptcha && !this.captchaDetected) {
         this.captchaDetected = true;
-        this.log('  CAPTCHA detectado');
-        this.onMessage?.({ type: 'takeover', reason: 'CAPTCHA detectado. Resuélvelo manualmente si el agente se detiene.' });
+        this.humanMode = true; // Activar modo humano
+        this.log('  CAPTCHA detectado - Activando modo humano');
+        this.onMessage?.({ type: 'takeover', reason: 'CAPTCHA detectado. Resuélvelo manualmente o espera comportamiento humano.' });
+        // Delay humano largo para simular lectura del captcha
+        await this.browser.delay(3000 + Math.random() * 5000);
       }
 
       if (this.currentDomain) this.siteMemory = loadSiteMemory(this.currentDomain);
+
+      // ── Delay humano entre iteraciones (anti-bot) ──
+      if (this.humanMode || iteration > 0) {
+        const humanDelay = 800 + Math.random() * 1500; // 0.8-2.3s delay humano
+        this.log(`  [Humano] Pausa de ${(humanDelay/1000).toFixed(1)}s...`);
+        await this.browser.delay(humanDelay);
+      }
 
       // ── PASO 1: PENSAR (análisis profundo) ──
       this.log('  [Pensando] Analizando pantalla...');
@@ -601,7 +613,7 @@ export class WebOperator {
           this.log('  [AI] 3 fallos consecutivos, abortando.');
           break;
         }
-        await this.browser.delay(2000);
+        await this.browser.delay(2000 + Math.random() * 2000);
         continue;
       }
       consecutiveFails = 0;
@@ -617,7 +629,7 @@ export class WebOperator {
       if (!action) {
         this.log(`  No se pudo parsear: ${thinkingResponse.slice(0, 100)}`);
         noProgressCount++;
-        if (noProgressCount > 5) {
+        if (noProgressCount > 3) {
           this.log('  Demasiados fallos de parseo, replanificando...');
           const replan = await this.reasoning.replan(task, pageInfo, this.actionHistory, 'Parsing failures');
           if (replan?.giveUp) break;
@@ -659,12 +671,34 @@ export class WebOperator {
         };
       }
 
-      // Ejecutar acción
+      // ── Detectar acción repetida (anti-loop) ──
+      const actionKey = `${action.type}:${action.target || action.value || ''}`;
+      if (actionKey === this.lastActionType) {
+        this.sameActionCount++;
+        if (this.sameActionCount >= 3) {
+          this.log(`  ⚠️ Acción repetida 3 veces: ${action.type} - Forzando replanificación`);
+          repeatedActionFails++;
+          const replan = await this.reasoning.replan(
+            task, pageInfo, this.actionHistory,
+            `Acción ${action.type} repetida ${this.sameActionCount} veces sin progreso`
+          );
+          if (replan?.giveUp) break;
+          this.sameActionCount = 0;
+          noProgressCount = 0;
+          continue; // Saltar esta ejecución, ir a siguiente iteración
+        }
+      } else {
+        this.sameActionCount = 0;
+      }
+      this.lastActionType = actionKey;
+
+      // Ejecutar acción con delay humano
       const result = await this.executeAction(action);
       this.logAction(action, result);
 
       // ── PASO 3: VERIFICAR ──
-      await this.browser.delay(1500); // Esperar que la página reaccione
+      const verifyDelay = 1500 + Math.random() * 1000; // 1.5-2.5s delay humano
+      await this.browser.delay(verifyDelay);
       const screenshotAfter = await this.browser.takeScreenshot();
       const pageInfoAfter = await this.browser.getPageInfo();
 
@@ -681,12 +715,13 @@ export class WebOperator {
         if (verification.success && verification.progressMade) {
           noProgressCount = 0;
           lastActionSummary = action.type;
+          repeatedActionFails = 0;
         } else if (!verification.progressMade) {
           noProgressCount++;
-          this.log(`  ⚠️ Sin progreso (${noProgressCount}/5)`);
+          this.log(`  ⚠️ Sin progreso (${noProgressCount}/3)`);
 
           if (noProgressCount >= 3) {
-            // ── PASO 4: REPLANIFICAR ──
+            this.log('  [Stuck] 3 iteraciones sin progreso, replanificando...');
             const replan = await this.reasoning.replan(
               task, pageInfoAfter, this.actionHistory,
               verification.suggestion || 'Sin progreso detectado'
@@ -702,16 +737,22 @@ export class WebOperator {
             }
 
             noProgressCount = 0;
+            this.sameActionCount = 0;
           }
         }
       } else {
-        // Sin screenshot de verificación, confiar en el resultado de la acción
         if (result.success) {
           noProgressCount = 0;
           lastActionSummary = action.type;
         } else {
           noProgressCount++;
         }
+      }
+
+      // ── Límite de fallos repetidos ──
+      if (repeatedActionFails >= 3) {
+        this.log('  [Anti-loop] Demasiadas acciones repetidas fallidas, abortando.');
+        break;
       }
 
       await this.browser.delay(500);
