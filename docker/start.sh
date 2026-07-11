@@ -333,6 +333,7 @@ fi
 # ── Proxy secundario (MiMo Code - opcional) ─────────────
 if [ -n "$MIMO_PID" ]; then
   echo "  Starting MiMo Code proxy on port $MIMO_PROXY_PORT..."
+  cd "$APP_DIR/artifacts/opencode-ui"
   PORT="$MIMO_PROXY_PORT" \
   OPENCODE_INTERNAL_PORT="$MIMO_PORT" \
   OPERATOR_PORT="$OPERATOR_PORT" \
