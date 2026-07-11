@@ -164,11 +164,19 @@ fi
 # ──────────────────────────────────────────────────────────
 #  ARRANQUE DE MOTORES
 # ──────────────────────────────────────────────────────────
-PROXY_PORT="3000"
+# Usar variables de entorno o valores por defecto
+PROXY_PORT="${PORT:-3000}"
 MIMO_PROXY_PORT="4000"
 
 OC_PORT="$(( PROXY_PORT + 1 ))"
 MIMO_PORT="$(( MIMO_PROXY_PORT + 1 ))"
+
+echo ""
+echo "  📊 Configuración de puertos:"
+echo "     PORT env var: ${PORT:-no definido}"
+echo "     PROXY_PORT: $PROXY_PORT"
+echo "     OC_PORT (OpenCode): $OC_PORT"
+echo "     OPERATOR_PORT: ${OPERATOR_PORT:-no definido}"
 
 mkdir -p "$WORKSPACE/proyectos"
 
