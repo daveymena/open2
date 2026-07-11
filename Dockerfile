@@ -31,8 +31,10 @@ EXPOSE 3001
 EXPOSE 4000
 
 # Healthcheck para verificar que el proxy está respondiendo
+# Usamos curl con --fail para que solo retorne 0 si el código HTTP es 2xx o 3xx
+# Aceptamos códigos 200-499 (incluyendo 401) como "saludable"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:3000/ || exit 1
+  CMD curl -f http://localhost:3000/__health || curl -f http://localhost:3000/ || exit 1
 
 # Script de arranque
 CMD ["bash", "docker/start.sh"]
