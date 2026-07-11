@@ -210,20 +210,7 @@ else
   echo "  MiMo not installed, skipping..."
 fi
 
-# ── Proxy principal (OpenCode) — se inicia ANTES del wait loop ──
-#    para que EasyPanel vea el puerto activo inmediatamente
-echo "  Starting OpenCode proxy on port $PROXY_PORT..."
-cd "$APP_DIR/artifacts/opencode-ui"
-
-PORT="$PROXY_PORT" \
-OPENCODE_INTERNAL_PORT="$OC_PORT" \
-OPERATOR_PORT="${OPERATOR_PORT:-3001}" \
-API_SERVER_PORT="${OPERATOR_PORT:-3001}" \
-DOCKER="true" \
-EASYPANEL="true" \
-node proxy.mjs &
-PROXY_PID=$!
-
+# ── ESPERAR a que OpenCode esté listo ANTES de iniciar el proxy ──
 echo "  Waiting for OpenCode to start (up to 120s)..."
 for i in $(seq 1 120); do
   # Probar ambas direcciones: localhost y 127.0.0.1
@@ -258,6 +245,23 @@ for i in $(seq 1 120); do
   sleep 1
 done
 
+# ── AHORA SÍ iniciamos el proxy, sabiendo que OpenCode está listo ──
+echo ""
+echo "  Starting OpenCode proxy on port $PROXY_PORT..."
+cd "$APP_DIR/artifacts/opencode-ui"
+
+PORT="$PROXY_PORT" \
+OPENCODE_INTERNAL_PORT="$OC_PORT" \
+OPERATOR_PORT="${OPERATOR_PORT:-3001}" \
+API_SERVER_PORT="${OPERATOR_PORT:-3001}" \
+DOCKER="true" \
+EASYPANEL="true" \
+node proxy.mjs &
+PROXY_PID=$!
+
+sleep 3
+echo "  ✅ Proxy iniciado (PID: $PROXY_PID)"
+
 # ── Web Operator ────────────────────────────────────────
 OPERATOR_PORT="${OPERATOR_PORT:-3001}"
 if [ -f "$APP_DIR/web-operator/api-server.js" ]; then
@@ -272,27 +276,6 @@ if [ -f "$APP_DIR/web-operator/api-server.js" ]; then
   sleep 2
   echo "  Web Operator ready"
 fi
-
-# ── Verificar que el proxy está funcionando correctamente ──
-echo "  Verificando conexión del proxy..."
-sleep 3
-for i in $(seq 1 30); do
-  if curl -s --connect-timeout 2 "http://127.0.0.1:$PROXY_PORT/" >/dev/null 2>&1; then
-    echo "  ✅ Proxy respondiendo correctamente en puerto $PROXY_PORT"
-    break
-  elif curl -s --connect-timeout 2 "http://localhost:$PROXY_PORT/" >/dev/null 2>&1; then
-    echo "  ✅ Proxy respondiendo correctamente en puerto $PROXY_PORT"
-    break
-  fi
-  if [ $i -eq 30 ]; then
-    echo "  ⚠️ ADVERTENCIA: Proxy no responde después de 30s"
-    echo "  Verificando estado del proceso proxy..."
-    ps aux | grep "node proxy.mjs" | grep -v grep || echo "  ❌ Proceso proxy no encontrado"
-    echo "  Verificando logs del proxy..."
-    # El proxy debería estar enviando logs a stdout
-  fi
-  sleep 1
-done
 
 # ── Proxy secundario (MiMo Code - opcional) ─────────────
 if [ -n "$MIMO_PID" ]; then
