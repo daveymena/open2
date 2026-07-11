@@ -211,39 +211,92 @@ else
 fi
 
 # ── ESPERAR a que OpenCode esté listo ANTES de iniciar el proxy ──
-echo "  Waiting for OpenCode to start (up to 120s)..."
+echo ""
+echo "  ⏳ Esperando a que OpenCode esté listo (máximo 120s)..."
+echo "  Probando conexión cada segundo en puerto $OC_PORT..."
+echo ""
+
+OPENCODE_READY=false
+
 for i in $(seq 1 120); do
+  # Mostrar progreso cada 5 segundos
+  if [ $((i % 5)) -eq 0 ]; then
+    echo "  ... esperando ${i}s (verificando http://127.0.0.1:$OC_PORT/)"
+  fi
+  
   # Probar ambas direcciones: localhost y 127.0.0.1
-  if curl -s --connect-timeout 1 "http://127.0.0.1:$OC_PORT/" >/dev/null 2>&1; then
-    echo "  ✅ OpenCode ready on 127.0.0.1 (${i}s)"
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$OC_PORT/" || echo "000")
-    echo "  OpenCode HTTP status: $HTTP_STATUS"
+  if curl -s --connect-timeout 2 "http://127.0.0.1:$OC_PORT/" >/dev/null 2>&1; then
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$OC_PORT/" 2>&1 || echo "000")
+    echo ""
+    echo "  ✅ OpenCode DETECTADO en 127.0.0.1 (después de ${i}s)"
+    echo "  📡 HTTP Status Code: $HTTP_STATUS"
+    
     if [ "$HTTP_STATUS" != "000" ] && [ "$HTTP_STATUS" != "502" ] && [ "$HTTP_STATUS" != "503" ]; then
-      echo "  ✅ OpenCode responde correctamente"
+      echo "  ✅ OpenCode está LISTO y respondiendo correctamente!"
+      OPENCODE_READY=true
       break
+    else
+      echo "  ⚠️  OpenCode responde pero con código $HTTP_STATUS (aún iniciando...)"
     fi
-  elif curl -s --connect-timeout 1 "http://localhost:$OC_PORT/" >/dev/null 2>&1; then
-    echo "  ✅ OpenCode ready on localhost (${i}s)"
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$OC_PORT/" || echo "000")
-    echo "  OpenCode HTTP status: $HTTP_STATUS"
+  elif curl -s --connect-timeout 2 "http://localhost:$OC_PORT/" >/dev/null 2>&1; then
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$OC_PORT/" 2>&1 || echo "000")
+    echo ""
+    echo "  ✅ OpenCode DETECTADO en localhost (después de ${i}s)"
+    echo "  📡 HTTP Status Code: $HTTP_STATUS"
+    
     if [ "$HTTP_STATUS" != "000" ] && [ "$HTTP_STATUS" != "502" ] && [ "$HTTP_STATUS" != "503" ]; then
-      echo "  ✅ OpenCode responde correctamente"
+      echo "  ✅ OpenCode está LISTO y respondiendo correctamente!"
+      OPENCODE_READY=true
       break
+    else
+      echo "  ⚠️  OpenCode responde pero con código $HTTP_STATUS (aún iniciando...)"
     fi
   fi
+  
+  # Timeout - diagnóstico detallado
   if [ $i -eq 120 ]; then
-    echo "  ❌ ERROR: OpenCode no respondió después de 120s"
-    echo "  Verificando si el proceso existe..."
-    ps aux | grep opencode | grep -v grep || echo "  ❌ Proceso opencode no encontrado"
-    echo "  Logs de OpenCode:"
-    tail -50 /tmp/opencode.log 2>/dev/null || echo "  No hay logs disponibles"
-    echo "  Intentando curl directo a 127.0.0.1..."
-    curl -v "http://127.0.0.1:$OC_PORT/" 2>&1 | head -20
-    echo "  Intentando curl directo a localhost..."
-    curl -v "http://localhost:$OC_PORT/" 2>&1 | head -20
+    echo ""
+    echo "  ❌❌❌ ERROR CRÍTICO: OpenCode NO respondió después de 120 segundos ❌❌❌"
+    echo ""
+    echo "  🔍 DIAGNÓSTICO:"
+    echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "  1️⃣ Verificando si el proceso OpenCode existe..."
+    if ps aux | grep "opencode serve" | grep -v grep; then
+      echo "     ✅ Proceso OpenCode está corriendo"
+    else
+      echo "     ❌ Proceso OpenCode NO encontrado"
+    fi
+    echo ""
+    echo "  2️⃣ Revisando los logs de OpenCode..."
+    if [ -f /tmp/opencode.log ]; then
+      echo "     📄 Últimas 30 líneas del log:"
+      tail -30 /tmp/opencode.log
+    else
+      echo "     ❌ No hay archivo de log en /tmp/opencode.log"
+    fi
+    echo ""
+    echo "  3️⃣ Intentando conexión verbose a 127.0.0.1:$OC_PORT..."
+    curl -v --connect-timeout 5 "http://127.0.0.1:$OC_PORT/" 2>&1 | head -30
+    echo ""
+    echo "  4️⃣ Intentando conexión verbose a localhost:$OC_PORT..."
+    curl -v --connect-timeout 5 "http://localhost:$OC_PORT/" 2>&1 | head -30
+    echo ""
+    echo "  5️⃣ Verificando puertos abiertos..."
+    netstat -tlnp 2>/dev/null | grep ":$OC_PORT" || echo "     ⚠️  Puerto $OC_PORT no está escuchando"
+    echo ""
+    echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   fi
+  
   sleep 1
 done
+
+if [ "$OPENCODE_READY" != "true" ]; then
+  echo ""
+  echo "  ⚠️⚠️⚠️ ADVERTENCIA: OpenCode no está listo, pero continuando de todas formas..."
+  echo "  El proxy puede fallar con errores 502"
+  echo ""
+fi
 
 # ── AHORA SÍ iniciamos el proxy, sabiendo que OpenCode está listo ──
 echo ""

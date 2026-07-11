@@ -1,5 +1,6 @@
 FROM node:20-bullseye
 
+# FORCE REBUILD - 2026-07-11-17:15 - Fix startup sequence
 # Instalar dependencias del sistema requeridas para Playwright
 RUN npx playwright install-deps
 
