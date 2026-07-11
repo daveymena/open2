@@ -226,12 +226,20 @@ echo "  Waiting for OpenCode to start (up to 120s)..."
 for i in $(seq 1 120); do
   if curl -s --connect-timeout 1 "http://localhost:$OC_PORT/" >/dev/null 2>&1; then
     echo "  ✅ OpenCode ready (${i}s)"
-    break
+    echo "  Testing OpenCode endpoint..."
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$OC_PORT/" || echo "000")
+    echo "  OpenCode HTTP status: $HTTP_STATUS"
+    if [ "$HTTP_STATUS" != "000" ]; then
+      echo "  ✅ OpenCode responde correctamente"
+      break
+    fi
   fi
   if [ $i -eq 120 ]; then
     echo "  ❌ ERROR: OpenCode no respondió después de 120s"
     echo "  Verificando si el proceso existe..."
     ps aux | grep opencode | grep -v grep || echo "  ❌ Proceso opencode no encontrado"
+    echo "  Intentando curl directo..."
+    curl -v "http://localhost:$OC_PORT/" 2>&1 | head -20
   fi
   sleep 1
 done

@@ -29,5 +29,9 @@ EXPOSE 3000
 EXPOSE 3001
 EXPOSE 4000
 
+# Healthcheck para verificar que el proxy está respondiendo
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:3000/ || exit 1
+
 # Script de arranque
 CMD ["bash", "docker/start.sh"]
