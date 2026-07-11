@@ -33,18 +33,15 @@ services:
       API_SERVER_PORT: "3002"
 
       # ── Seguridad (opcional pero recomendado) ─────────────
-      # Establece una contraseña para proteger el acceso web
-      # OPENCODE_SERVER_PASSWORD: "tu-password-seguro"
+      OPENCODE_SERVER_PASSWORD: "6715320Dvd."
 
       # ── FreeModel (GPT-4o GRATIS — prioridad #1 para visión) ──
-      # Obtener en: https://freemodel.dev
-      FREEMODEL_API_KEY: ""
+      FREEMODEL_API_KEY: "fe_oa_db8434da9d092b657e26dba8e2cdbf5cc460848f7e3b490c"
       FREEMODEL_BASE_URL: "https://api.freemodel.dev/v1"
       FREEMODEL_MODEL: "gpt-4o"
 
       # ── OpenAI ───────────────────────────────────────────
-      # Obtener en: https://platform.openai.com/api-keys
-      OPENAI_API_KEY: ""
+      OPENAI_API_KEY: "sk-YWevx8mah8rJrsUHuGydWhSYL3tYEyohCYOReAafifhj2m6Kb0La07ywx9Kpbbl7"
 
       # ── Anthropic Claude ─────────────────────────────────
       # Obtener en: https://console.anthropic.com
@@ -69,21 +66,19 @@ services:
       XAI_API_KEY: ""
 
       # ── Puter.js (texto gratis sin API key) ──────────────
-      PUTER_AUTH_TOKEN: ""
+      PUTER_AUTH_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0IjoiZ3VpIiwidiI6IjAuMC4wIiwidSI6ImRDdjMrQURQU1BldFk0Z09JLyt3Umc9PSIsInV1Ijoic0VDNE5SZi9Ra3FBYWlIZ1FsTWNWZz09IiwiaWF0IjoxNzc4ODYyMDk2fQ.OA-DQOWYxuE0tSxhR4Egl2x50KSgYyPeu-HjT-JqSrs"
 
       # ── GitHub Token (para push/pull desde el agente) ────
-      GITHUB_TOKEN: ""
+      GITHUB_TOKEN: "TU_GITHUB_TOKEN_AQUI"
       GITHUB_PERSONAL_ACCESS_TOKEN: ""
 
       # ── Base de datos Easypanel PostgreSQL ───────────────
-      # Si usas la BD interna de Easypanel, copia la URL desde
-      # el servicio PostgreSQL en tu panel
-      EASYPANEL_DATABASE_URL: ""
-      DB_HOST: ""
+      EASYPANEL_DATABASE_URL: "postgres://PostgreSQL:6715320D@tecnoia_tecnologi:5432/tecno?sslmode=disable"
+      DB_HOST: "tecnoia_tecnologi"
       DB_PORT: "5432"
-      DB_USER: ""
-      DB_PASSWORD: ""
-      DB_NAME: ""
+      DB_USER: "PostgreSQL"
+      DB_PASSWORD: "6715320D"
+      DB_NAME: "tecno"
 
       # ── Telegram Bot (opcional) ───────────────────────────
       TELEGRAM_BOT_TOKEN: ""

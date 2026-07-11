@@ -9,9 +9,30 @@ import { existsSync } from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const PORT            = parseInt(process.env.PORT || "21293");
-const OPENCODE_PORT   = parseInt(process.env.OPENCODE_INTERNAL_PORT || "21294");
-const OPENCODE_TARGET = `http://localhost:${OPENCODE_PORT}`;
+const PORT            = parseInt(process.env.PORT || "3000");
+const OPENCODE_PORT   = parseInt(process.env.OPENCODE_INTERNAL_PORT || "3001");
+
+// En Docker/EasyPanel, intentar conectar a diferentes hosts
+let OPENCODE_TARGET;
+const IS_DOCKER = process.env.DOCKER === 'true' || process.env.EASYPANEL === 'true';
+
+if (IS_DOCKER) {
+  // En EasyPanel/Docker, usar 127.0.0.1 que es más confiable que localhost
+  OPENCODE_TARGET = `http://127.0.0.1:${OPENCODE_PORT}`;
+  console.log(`[Proxy] Modo Docker/EasyPanel detectado`);
+} else {
+  OPENCODE_TARGET = `http://localhost:${OPENCODE_PORT}`;
+  console.log(`[Proxy] Modo local detectado`);
+}
+
+console.log(`[Proxy] Puerto del proxy: ${PORT}`);
+console.log(`[Proxy] Puerto de OpenCode: ${OPENCODE_PORT}`);
+console.log(`[Proxy] Target de conexión: ${OPENCODE_TARGET}`);
+console.log(`[Proxy] Variables de entorno:`);
+console.log(`  - DOCKER: ${process.env.DOCKER || 'no definido'}`);
+console.log(`  - EASYPANEL: ${process.env.EASYPANEL || 'no definido'}`);
+console.log(`  - PORT: ${process.env.PORT || 'no definido'}`);
+console.log(`  - OPENCODE_INTERNAL_PORT: ${process.env.OPENCODE_INTERNAL_PORT || 'no definido'}`);
 
 const app = express();
 
@@ -370,12 +391,30 @@ const proxyOptions = {
       });
     },
     error: (err, req, res) => {
+      console.error(`[Proxy] ERROR al conectar con OpenCode:`);
+      console.error(`  - Target: ${OPENCODE_TARGET}`);
+      console.error(`  - Error: ${err.message}`);
+      console.error(`  - Código: ${err.code || 'desconocido'}`);
+      console.error(`  - Path solicitado: ${req.url}`);
+      
+      // Intentar diagnosticar el problema
+      if (err.code === 'ECONNREFUSED') {
+        console.error(`  ⚠️ DIAGNÓSTICO: OpenCode no está escuchando en el puerto ${OPENCODE_PORT}`);
+        console.error(`     Verifica que OpenCode haya iniciado correctamente`);
+      } else if (err.code === 'ETIMEDOUT') {
+        console.error(`  ⚠️ DIAGNÓSTICO: Timeout al conectar con OpenCode`);
+        console.error(`     OpenCode puede estar sobrecargado o no responder`);
+      } else if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN') {
+        console.error(`  ⚠️ DIAGNÓSTICO: No se pudo resolver el hostname`);
+        console.error(`     Intenta usar 127.0.0.1 en lugar de localhost`);
+      }
+      
       if (!res.headersSent) {
         res.writeHead(502, { "Content-Type": "text/html; charset=utf-8" });
         res.end(`<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><title>OpenCode Evolved</title>
-<style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f0f1a;color:#e2e8f0}.card{text-align:center;padding:2rem;border-radius:12px;background:#1e1e2e;border:1px solid #334155;max-width:400px}h1{color:#8b5cf6;margin:0 0 .5rem}p{color:#94a3b8;margin:0 0 1.5rem}button{background:#8b5cf6;color:#fff;border:none;padding:.75rem 1.5rem;border-radius:8px;font-size:1rem;cursor:pointer}button:hover{background:#7c3aed}</style></head>
-<body><div class="card"><h1>OpenCode</h1><p>Iniciando servidor...</p><button onclick="location.reload()">Reintentar</button></div></body></html>`);
+<style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f0f1a;color:#e2e8f0}.card{text-align:center;padding:2rem;border-radius:12px;background:#1e1e2e;border:1px solid #334155;max-width:500px}h1{color:#8b5cf6;margin:0 0 .5rem}p{color:#94a3b8;margin:0 0 1rem;font-size:.95rem}.error{background:#3f1f1f;border:1px solid #7f1f1f;padding:1rem;border-radius:8px;margin:1rem 0;text-align:left;font-family:monospace;font-size:.85rem;color:#fca5a5}.error-title{color:#ef4444;font-weight:bold;margin-bottom:.5rem}button{background:#8b5cf6;color:#fff;border:none;padding:.75rem 1.5rem;border-radius:8px;font-size:1rem;cursor:pointer;margin-top:1rem}button:hover{background:#7c3aed}</style></head>
+<body><div class="card"><h1>OpenCode Evolved</h1><p>El servidor OpenCode está iniciando o no responde</p><div class="error"><div class="error-title">Error Técnico:</div>${err.message} (${err.code || 'desconocido'})<br><br>Target: ${OPENCODE_TARGET}<br>Puerto: ${OPENCODE_PORT}</div><p>Por favor espera unos segundos y recarga la página</p><button onclick="location.reload()">Reintentar</button></div></body></html>`);
       }
     },
   },

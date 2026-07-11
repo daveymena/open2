@@ -219,17 +219,27 @@ PORT="$PROXY_PORT" \
 OPENCODE_INTERNAL_PORT="$OC_PORT" \
 OPERATOR_PORT="${OPERATOR_PORT:-3001}" \
 API_SERVER_PORT="${OPERATOR_PORT:-3001}" \
+DOCKER="true" \
+EASYPANEL="true" \
 node proxy.mjs &
 PROXY_PID=$!
 
 echo "  Waiting for OpenCode to start (up to 120s)..."
 for i in $(seq 1 120); do
-  if curl -s --connect-timeout 1 "http://localhost:$OC_PORT/" >/dev/null 2>&1; then
-    echo "  ✅ OpenCode ready (${i}s)"
-    echo "  Testing OpenCode endpoint..."
+  # Probar ambas direcciones: localhost y 127.0.0.1
+  if curl -s --connect-timeout 1 "http://127.0.0.1:$OC_PORT/" >/dev/null 2>&1; then
+    echo "  ✅ OpenCode ready on 127.0.0.1 (${i}s)"
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$OC_PORT/" || echo "000")
+    echo "  OpenCode HTTP status: $HTTP_STATUS"
+    if [ "$HTTP_STATUS" != "000" ] && [ "$HTTP_STATUS" != "502" ] && [ "$HTTP_STATUS" != "503" ]; then
+      echo "  ✅ OpenCode responde correctamente"
+      break
+    fi
+  elif curl -s --connect-timeout 1 "http://localhost:$OC_PORT/" >/dev/null 2>&1; then
+    echo "  ✅ OpenCode ready on localhost (${i}s)"
     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$OC_PORT/" || echo "000")
     echo "  OpenCode HTTP status: $HTTP_STATUS"
-    if [ "$HTTP_STATUS" != "000" ]; then
+    if [ "$HTTP_STATUS" != "000" ] && [ "$HTTP_STATUS" != "502" ] && [ "$HTTP_STATUS" != "503" ]; then
       echo "  ✅ OpenCode responde correctamente"
       break
     fi
@@ -238,7 +248,11 @@ for i in $(seq 1 120); do
     echo "  ❌ ERROR: OpenCode no respondió después de 120s"
     echo "  Verificando si el proceso existe..."
     ps aux | grep opencode | grep -v grep || echo "  ❌ Proceso opencode no encontrado"
-    echo "  Intentando curl directo..."
+    echo "  Logs de OpenCode:"
+    tail -50 /tmp/opencode.log 2>/dev/null || echo "  No hay logs disponibles"
+    echo "  Intentando curl directo a 127.0.0.1..."
+    curl -v "http://127.0.0.1:$OC_PORT/" 2>&1 | head -20
+    echo "  Intentando curl directo a localhost..."
     curl -v "http://localhost:$OC_PORT/" 2>&1 | head -20
   fi
   sleep 1
@@ -258,6 +272,27 @@ if [ -f "$APP_DIR/web-operator/api-server.js" ]; then
   sleep 2
   echo "  Web Operator ready"
 fi
+
+# ── Verificar que el proxy está funcionando correctamente ──
+echo "  Verificando conexión del proxy..."
+sleep 3
+for i in $(seq 1 30); do
+  if curl -s --connect-timeout 2 "http://127.0.0.1:$PROXY_PORT/" >/dev/null 2>&1; then
+    echo "  ✅ Proxy respondiendo correctamente en puerto $PROXY_PORT"
+    break
+  elif curl -s --connect-timeout 2 "http://localhost:$PROXY_PORT/" >/dev/null 2>&1; then
+    echo "  ✅ Proxy respondiendo correctamente en puerto $PROXY_PORT"
+    break
+  fi
+  if [ $i -eq 30 ]; then
+    echo "  ⚠️ ADVERTENCIA: Proxy no responde después de 30s"
+    echo "  Verificando estado del proceso proxy..."
+    ps aux | grep "node proxy.mjs" | grep -v grep || echo "  ❌ Proceso proxy no encontrado"
+    echo "  Verificando logs del proxy..."
+    # El proxy debería estar enviando logs a stdout
+  fi
+  sleep 1
+done
 
 # ── Proxy secundario (MiMo Code - opcional) ─────────────
 if [ -n "$MIMO_PID" ]; then
